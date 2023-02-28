@@ -1,0 +1,38 @@
+name: everyday-birthday-misskey
+
+on:
+  schedule:
+    - cron: "1 15 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+      - name: npm install
+        run: npm install
+      - name: run (retry at most 3 times including 1st try)
+        run: npm start || (sleep 60 && npm start) || (sleep 60 && npm start)
+        env:
+          YEAR: ${{ secrets.YEAR }}
+          MISSKEY_TOKEN: ${{ secrets.MISSKEY_TOKEN }}
+      - name: Setup a-know/pi
+        uses: peaceiris/actions-pixela@v2
+        with:
+          pi_version: '1.2.0'
+      - name: Increment
+        env:
+          PIXELA_USER_NAME: ${{ secrets.PIXELA_USER_NAME }}
+          PIXELA_USER_TOKEN: ${{ secrets.PIXELA_USER_TOKEN }}
+        run: |
+          pi pixel increment -g misskey-bd
+      - name: Slack Notification on Failure
+        uses: rtCamp/action-slack-notify@v2.0.2
+        if: failure()
+        env:
+          SLACK_CHANNEL: general
+          SLACK_MESSAGE: Failed to make today as misskey birthday
+          SLACK_COLOR: danger
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
